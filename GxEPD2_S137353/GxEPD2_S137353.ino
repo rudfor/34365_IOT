@@ -1,58 +1,60 @@
-#include <SPI.h>
-#include "epd1in54_V2.h"
-#include "imagedata.h"
-#include "epdpaint.h"
-#include <stdio.h>
+// GxEPD2_HelloWorld.ino by Jean-Marc Zingg
+
+// see GxEPD2_wiring_examples.h for wiring suggestions and examples
+// if you use a different wiring, you need to adapt the constructor parameters!
+
+// uncomment next line to use class GFX of library GFX_Root instead of Adafruit_GFX
+//#include <GFX.h>
+
+#include <GxEPD2_BW.h>
+#include <GxEPD2_3C.h>
+#include <GxEPD2_7C.h>
+#include <Fonts/FreeMonoBold9pt7b.h>
 #include <rn2xx3.h>
 #include <SoftwareSerial.h>
 
-// LoRa 
+//     __  _          ___        __   
+//    / / | |    ___ | _ \ __ _  \ \  
+//   < <  | |__ / _ \|   // _` |  > > 
+//    \_\ |____|\___/|_|_\\__,_| /_/  
+//                                    
 SoftwareSerial mySerial(6, 5); // RX, TX
-
 //create an instance of the rn2xx3 library,
 //giving the software serial as port to use
 rn2xx3 myLora(mySerial);
 
-// ePaper
-Epd epd;
-unsigned char image[1024];
-Paint paint(image, 0, 0);
+//     __   ___       ___  ___  ___  ___  __   
+//    / /  / __|__ __| __|| _ \|   \|_  ) \ \  
+//   < <  | (_ |\ \ /| _| |  _/| |) |/ /   > > 
+//    \_\  \___|/_\_\|___||_|  |___//___| /_/  
+//                                             
+// select the display class and display driver class in the following file (new style):
+#include "GxEPD2_display_selection_new_style.h"
+//GxEPD2_BW<GxEPD2_154_D67, MAX_HEIGHT(GxEPD2_154_D67)> display(GxEPD2_154_D67(/*CS=10*/ SS, /*DC=*/ 9, /*RST=*/ 8, /*BUSY=*/ 7)); // GDEH0154D67 200x200, SSD1681
 
-unsigned long time_start_ms;
-unsigned long time_now_s;
-#define COLORED     0
-#define UNCOLORED   1
+// or select the display constructor line in one of the following files (old style):
+#include "GxEPD2_display_selection.h"
+#include "GxEPD2_display_selection_added.h"
 
-void refresh(float temp1, float temp2){
-  char tempbuff1[14];
-  char tempbuff2[14];
-  dtostrf(temp1, 4, 2, tempbuff1);
-  dtostrf(temp2, 4, 2, tempbuff2);
-  Serial.println(tempbuff1);
-  Serial.println(tempbuff2);
+// alternately you can copy the constructor from GxEPD2_display_selection.h or GxEPD2_display_selection_added.h to here
+// e.g. for Wemos D1 mini:
+//GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(/*CS=D8*/ SS, /*DC=D3*/ 0, /*RST=D4*/ 2, /*BUSY=D2*/ 4)); // GDEH0154D67
 
-  Serial.println(F("e-Paper paint"));
-  epd.Clear();
-  paint.Clear(COLORED);
-  paint.DrawStringAt(0, 0, "< S137353 >", &Font24, UNCOLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 10, paint.GetWidth(), paint.GetHeight());
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(0, 4, "Temperature 1", &Font20, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 40, paint.GetWidth(), paint.GetHeight());
-  paint.Clear(COLORED);
-  paint.DrawStringAt(0, 5, tempbuff1, &Font24, UNCOLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 80, paint.GetWidth(), paint.GetHeight());
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(0, 4, "Temperature 2", &Font20, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 120, paint.GetWidth(), paint.GetHeight());
-  paint.Clear(COLORED);
-  paint.DrawStringAt(0, 5, tempbuff2, &Font24, UNCOLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 160, paint.GetWidth(), paint.GetHeight());
-  delay(50);        // delay in between reads for stability
-
-  epd.DisplayPartFrame();
+/*void led_on()
+{
+  digitalWrite(13, 1);
 }
 
+void led_off()
+{
+  digitalWrite(13, 0);
+}*/
+
+//    ___        _  _    _        _  _            ___           _  _      
+//   |_ _| _ _  (_)| |_ (_) __ _ | |(_) ___ ___  | _ \ __ _  __| |(_) ___ 
+//    | | | ' \ | ||  _|| |/ _` || || ||_ // -_) |   // _` |/ _` || |/ _ \
+//   |___||_||_||_| \__||_|\__,_||_||_|/__|\___| |_|_\\__,_|\__,_||_|\___/
+//                                                                        
 void initialize_radio()
 {
   //reset rn2483
@@ -118,46 +120,59 @@ void initialize_radio()
   Serial.println("Successfully joined Helium");
 }
 
-/*void led_on()
-{
-  digitalWrite(13, 1);
-}
-
-void led_off()
-{
-  digitalWrite(13, 0);
-}*/
 
 void setup()
 {
+  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+  helloWorld();
+  display.hibernate();
+  
+  
   //output LED pin
   //pinMode(13, OUTPUT);
   //led_on();
-
   // Open serial communications and wait for port to open:
   Serial.begin(115200); //serial port to computer
   mySerial.begin(9600); //serial port to radio
   Serial.println("Startup");
-  //Serial.println("e-Paper init and clear");
-  epd.LDirInit();
-  epd.Clear();
-  paint.SetWidth(200);
-  paint.SetHeight(24);
-  refresh(0.0,0.0);
 
   initialize_radio();
 
   //transmit a startup message
-  myLora.tx(F("Helium Mapper on Helium Enschede node"));
+  myLora.tx("Helium Mapper on Helium Enschede node");
 
   //led_off();
   delay(2000);
+  
 }
 
-void loop()
-{
-  //led_on();
+const char HelloWorld[] = "S137353";
 
+void helloWorld()
+{
+  display.setRotation(2);
+  display.setFont(&FreeMonoBold9pt7b);
+  display.setTextColor(GxEPD_BLACK);
+  int16_t tbx, tby; uint16_t tbw, tbh;
+  display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
+  // center the bounding box by transposition of the origin:
+  uint16_t x = ((display.width() - tbw) / 2) - tbx;
+  uint16_t y = ((display.height() - tbh) / 2) - tby;
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.setCursor(x, 10);
+    display.print(HelloWorld);
+  }
+  while (display.nextPage());
+}
+
+void loop() {
+
+  //led_on();
   int sensorValue1 = analogRead(A0);
   int sensorValue2 = analogRead(A1);
   float voltage1 = sensorValue1 * (3.3 / 1023.0);
@@ -184,7 +199,7 @@ void loop()
   Serial.print(" : ");
   Serial.print(Temp2);
   Serial.println(" Degrees");
-  refresh(Temp1,Temp2);
+  //refresh(Temp1,Temp2);
 
   Serial.println("TXing");
   myLora.tx("!"); //one byte, blocking function
@@ -192,4 +207,5 @@ void loop()
   //led_off();
   delay(2000);        // delay in between reads for stability
 
-}
+
+};
